@@ -22,6 +22,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static(UPLOADS_DIR));
+// Serve static images referenced by `backend/public/index.html` (e.g. `images/sultanalogo.jpeg`)
+app.use("/images", express.static(path.join(__dirname, "..", "images")));
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
