@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sultana Shop - Mode Femme</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="logo-wrap" aria-label="Emplacement logo">
+        <img src="images/sultanalogo.jpeg" alt="Sultana Shop Logo" class="logo-img">
+        <div>
+          <h1>Sultana Shop</h1>
+          <p>Elegance feminine</p>
+        </div>
+      </div>
+      <nav class="top-nav">
+        <button id="showCatalogBtn" class="nav-btn active">Catalogue</button>
+        <button id="showAboutBtn" class="nav-btn">A propos</button>
+        <button id="showAdminBtn" class="nav-btn">Admin</button>
+        <button id="languageToggleBtn" class="nav-btn">AR</button>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <section id="catalogSection" class="panel">
+        <div class="panel-head">
+          <h2>Collection Femme</h2>
+          <p>Nouveautes et style raffine en noir & gold</p>
+        </div>
+
+        <div class="filters">
+          <label for="categoryFilter">Filtrer par categorie :</label>
+          <select id="categoryFilter">
+            <option value="all">Tout afficher</option>
+            <option value="robes">Robes</option>
+            <option value="pantalon">Pantalon</option>
+            <option value="jupes">Jupes</option>
+            <option value="chemises">Chemises</option>
+            <option value="vestes">Vestes</option>
+          </select>
+        </div>
+
+        <div id="productsGrid" class="products-grid"></div>
+      </section>
+
+      <section id="aboutSection" class="panel hidden">
+        <div class="panel-head">
+          <h2 id="aboutTitle">A propos</h2>
+          <p>Nos reseaux et informations de contact</p>
+        </div>
+        <div id="aboutLinks" class="about-links"></div>
+      </section>
+
+      <section id="detailSection" class="panel hidden">
+        <div class="detail-head">
+          <button id="backToCatalogBtn" class="ghost-btn">Retour au catalogue</button>
+        </div>
+        <div id="productDetail"></div>
+        <div class="similar-wrap">
+          <h3>Articles similaires</h3>
+          <div id="similarProducts" class="products-grid compact"></div>
+        </div>
+      </section>
+
+      <section id="adminSection" class="panel hidden">
+        <div class="panel-head">
+          <h2>Dashboard Admin</h2>
+          <p>Ajouter, modifier et supprimer les articles</p>
+        </div>
+
+        <div id="adminAuthBox" class="admin-auth">
+          <h3>Connexion admin</h3>
+          <form id="adminLoginForm" class="form-grid">
+            <label>
+              Nom utilisateur
+              <input id="adminUsername" type="text" required />
+            </label>
+            <label>
+              Mot de passe
+              <input id="adminPassword" type="password" required />
+            </label>
+            <button type="submit" class="primary-btn">Se connecter</button>
+            <p class="hint">Utilisateur unique (admin)</p>
+          </form>
+        </div>
+
+        <div id="adminDashboard" class="hidden">
+          <div class="dashboard-head">
+            <h3>Gestion des articles</h3>
+            <button id="logoutBtn" class="ghost-btn">Deconnexion</button>
+          </div>
+
+          <form id="productForm" class="form-grid">
+            <input type="hidden" id="productId" />
+            <label>
+              Nom
+              <input id="name" type="text" required />
+            </label>
+            <label>
+              Categorie
+              <select id="category" required>
+                <option value="robes">Robes</option>
+                <option value="pantalon">Pantalon</option>
+                <option value="jupes">Jupes</option>
+                <option value="chemises">Chemises</option>
+                <option value="vestes">Vestes</option>
+              </select>
+            </label>
+            <label>
+              Prix (MAD)
+              <input id="price" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              Description
+              <textarea id="description" rows="3" required></textarea>
+            </label>
+            <label>
+              Tailles (ex: 36-44)
+              <input id="sizeRange" type="text" placeholder="36-44" required />
+            </label>
+            <label>
+              Couleurs (ex: Noir,Dore,Blanc)
+              <input id="colors" type="text" placeholder="Noir,Dore" required />
+            </label>
+            <label>
+              Image principale (depuis PC)
+              <input id="defaultImageFile" type="file" accept="image/*" />
+            </label>
+            <label>
+              Images par couleur (depuis PC)
+              <div id="colorImageFields" class="color-image-fields">
+                <p class="hint">Ecris les couleurs puis choisis une image pour chaque couleur.</p>
+              </div>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Enregistrer</button>
+              <button type="button" id="resetFormBtn" class="ghost-btn">Reinitialiser</button>
+            </div>
+          </form>
+
+          <div class="panel sub-panel">
+            <h3 id="aboutAdminTitle">A propos et contacts</h3>
+            <form id="aboutForm" class="form-grid">
+              <label>
+                Instagram
+                <input id="aboutInstagram" type="url" placeholder="https://instagram.com/..." required />
+              </label>
+              <label>
+                TikTok
+                <input id="aboutTiktok" type="url" placeholder="https://tiktok.com/..." required />
+              </label>
+              <label>
+                Google Maps
+                <input id="aboutMaps" type="url" placeholder="https://maps.google.com/..." required />
+              </label>
+              <label>
+                Telephone
+                <input id="aboutPhone" type="text" placeholder="+212 ..." required />
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="primary-btn">Enregistrer contacts</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Categorie</th>
+                  <th>Prix</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminProductsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
