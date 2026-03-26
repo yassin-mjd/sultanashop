@@ -201,6 +201,23 @@ textarea {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Search input inside the filters bar */
+.description-search-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 260px;
+}
+
+.description-search-label {
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.description-search {
+  width: auto; /* override `width: 100%` coming from the generic input styles */
+}
+
 select:focus,
 input:focus,
 textarea:focus {

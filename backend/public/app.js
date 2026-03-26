@@ -53,10 +53,10 @@ const fallbackProducts = [
 ];
 
 const fallbackAbout = {
-  instagram: "https://instagram.com",
-  tiktok: "https://tiktok.com",
-  maps: "https://maps.google.com",
-  phone: "+212 600 000 000",
+  instagram: "https://www.instagram.com/sultana_shop10?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
+  email: "Sultanashop9957@gmail.com",
+  maps: "l.instagram.com/?u=https%3A%2F%2Fmaps.app.goo.gl%2Fv29BCoWLWMENMra79%3Fg_st%3Dic%26utm_source%3Dig%26utm_medium%3Dsocial%26utm_content%3Dlink_in_bio%26fbclid%3DPAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQMMjU2MjgxMDQwNTU4AAGn9r56y0M8srNuVFwVOzfJHesNVc8kuWXpGr6rmms_1GQz4f664cshJ4kZiFQ_aem_5AcSeTKUXQ-7tJAzTD8usA&e=AT6p953WX8QO8rN1-4GHFbA3e_0gkn2S1WjyCKC7GxgLxaAas7CeTIbv3QmBBO6j9k1H0AG-9O7pd81wVkM2sHk7q-KlaSgDW3qhNuSBcA",
+  phone: "+212620128923",
 };
 
 const i18n = {
@@ -69,7 +69,10 @@ const i18n = {
     back: "Retour au catalogue",
     similar: "Articles similaires",
     categoryLabel: "Filtrer par categorie :",
+    searchLabel: "Recherche par description :",
+    searchPlaceholder: "Mot-clé dans la description",
     emptyCategory: "Aucun article pour cette categorie.",
+    emptySearch: "Aucun article ne correspond a votre recherche.",
     noSimilar: "Aucun article similaire pour le moment.",
     loginError: "Identifiants admin incorrects.",
     defaultImageRequired: "Veuillez selectionner une image principale.",
@@ -86,7 +89,10 @@ const i18n = {
     back: "العودة للمنتجات",
     similar: "منتجات مشابهة",
     categoryLabel: "تصفية حسب الفئة:",
+    searchLabel: "بحث في الوصف :",
+    searchPlaceholder: "كلمة في الوصف",
     emptyCategory: "لا توجد منتجات في هذه الفئة.",
+    emptySearch: "لا توجد نتائج حسب البحث.",
     noSimilar: "لا توجد منتجات مشابهة حاليا.",
     loginError: "بيانات المدير غير صحيحة.",
     defaultImageRequired: "يرجى اختيار الصورة الرئيسية.",
@@ -106,6 +112,8 @@ const el = {
   showAdminBtn: document.getElementById("showAdminBtn"),
   languageToggleBtn: document.getElementById("languageToggleBtn"),
   categoryFilter: document.getElementById("categoryFilter"),
+  descriptionSearch: document.getElementById("descriptionSearch"),
+  descriptionSearchLabel: document.getElementById("descriptionSearchLabel"),
   productsGrid: document.getElementById("productsGrid"),
   aboutTitle: document.getElementById("aboutTitle"),
   aboutLinks: document.getElementById("aboutLinks"),
@@ -142,6 +150,7 @@ let state = {
   products: [],
   about: { ...fallbackAbout },
   selectedCategory: "all",
+  searchDescription: "",
   selectedProductId: null,
   selectedColor: null,
   language: "fr",
@@ -201,8 +210,15 @@ function isNewProduct(product) {
 }
 
 function getFilteredProducts() {
-  if (state.selectedCategory === "all") return state.products;
-  return state.products.filter((p) => p.category === state.selectedCategory);
+  let products = state.products;
+  if (state.selectedCategory !== "all") {
+    products = products.filter((p) => p.category === state.selectedCategory);
+  }
+
+  const q = state.searchDescription.trim().toLowerCase();
+  if (!q) return products;
+
+  return products.filter((p) => (p.description || "").toLowerCase().includes(q));
 }
 
 function productCardTemplate(product) {
@@ -224,7 +240,8 @@ function productCardTemplate(product) {
 function renderCatalog() {
   const products = getFilteredProducts();
   if (!products.length) {
-    el.productsGrid.innerHTML = `<p>${t("emptyCategory")}</p>`;
+    const msgKey = state.searchDescription.trim() ? "emptySearch" : "emptyCategory";
+    el.productsGrid.innerHTML = `<p>${t(msgKey)}</p>`;
     return;
   }
   el.productsGrid.innerHTML = products.map(productCardTemplate).join("");
@@ -419,6 +436,9 @@ function applyLanguage() {
   if (similarTitle) similarTitle.textContent = t("similar");
   const filterLabel = document.querySelector('label[for="categoryFilter"]');
   if (filterLabel) filterLabel.textContent = t("categoryLabel");
+
+  if (el.descriptionSearchLabel) el.descriptionSearchLabel.textContent = t("searchLabel");
+  if (el.descriptionSearch) el.descriptionSearch.placeholder = t("searchPlaceholder");
 }
 
 function setAdminAuthUI() {
@@ -455,6 +475,11 @@ function bindEvents() {
 
   el.categoryFilter.addEventListener("change", (e) => {
     state.selectedCategory = e.target.value;
+    renderCatalog();
+  });
+
+  el.descriptionSearch?.addEventListener("input", (e) => {
+    state.searchDescription = e.target.value;
     renderCatalog();
   });
 
