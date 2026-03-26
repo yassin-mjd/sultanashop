@@ -1,5 +1,6 @@
 const SESSION_KEY = "sultana_admin_session";
-const API_BASE_URL = "http://localhost:4000/api";
+// Use same-origin API on Render (avoid hard-coded localhost).
+const API_BASE_URL = "/api";
 const NEW_BADGE_DAYS = 7;
 
 const fallbackProducts = [
