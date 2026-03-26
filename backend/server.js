@@ -164,8 +164,12 @@ app.put("/api/about", authRequired, async (req, res) => {
   res.json(about);
 });
 
-const port = 4000;
+const port = process.env.PORT || 4000;
 await fs.mkdir(UPLOADS_DIR, { recursive: true });
+app.use(express.static(path.join(__dirname, "public")));
 app.listen(port, () => {
   console.log(`Sultana backend running on http://localhost:${port}`);
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+  });
 });
