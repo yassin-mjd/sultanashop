@@ -1,51 +1,54 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import multer from "multer";
+import mongoose from "mongoose";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PRODUCTS_FILE = path.join(__dirname, "data", "products.json");
-const ABOUT_FILE = path.join(__dirname, "data", "about.json");
-const UPLOADS_DIR = path.join(__dirname, "uploads");
 
-const ADMIN = {
-  username: "yassine",
-  password: "monnvconte9957",
-};
-const TOKEN_SECRET = "sultana-simple-secret";
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use("/uploads", express.static(UPLOADS_DIR));
-// Serve static images referenced by `backend/public/index.html` (e.g. `images/sultanalogo.jpeg`)
-app.use("/images", express.static(path.join(__dirname, "..", "images")));
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase();
-    cb(null, `${Date.now()}-${crypto.randomUUID()}${ext}`);
-  },
+// ── Cloudinary config ─────────────────────────────────────────
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-const upload = multer({ storage });
 
-async function readJson(file, fallback) {
-  try {
-    const raw = await fs.readFile(file, "utf8");
-    return JSON.parse(raw);
-  } catch (_) {
-    return fallback;
-  }
-}
+// ── MongoDB models ────────────────────────────────────────────
+const productSchema = new mongoose.Schema({
+  id: { type: String, default: () => crypto.randomUUID() },
+  name: String,
+  price: Number,
+  description: String,
+  defaultImage: String,
+  colorImages: { type: Map, of: String, default: {} },
+  colors: [String],
+  sizes: [String],
+  category: String,
+  createdAt: { type: Number, default: () => Date.now() },
+}, { strict: false });
 
-async function writeJson(file, value) {
-  await fs.writeFile(file, JSON.stringify(value, null, 2), "utf8");
-}
+const aboutSchema = new mongoose.Schema({
+  instagram: { type: String, default: "" },
+  tiktok:    { type: String, default: "" },
+  maps:      { type: String, default: "" },
+  phone:     { type: String, default: "" },
+});
+
+const Product = mongoose.model("Product", productSchema);
+const About   = mongoose.model("About", aboutSchema);
+
+// ── Auth ──────────────────────────────────────────────────────
+const ADMIN = {
+  username: process.env.ADMIN_USERNAME,
+  password: process.env.ADMIN_PASSWORD,
+};
+const TOKEN_SECRET = process.env.TOKEN_SECRET;
 
 function makeToken(username) {
   return crypto.createHash("sha256").update(`${username}.${TOKEN_SECRET}`).digest("hex");
@@ -59,39 +62,20 @@ function authRequired(req, res, next) {
   next();
 }
 
-function fileUrl(req, filename) {
-  return `${req.protocol}://${req.get("host")}/uploads/${filename}`;
-}
+// ── Multer → Cloudinary ───────────────────────────────────────
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "sultanashop", allowed_formats: ["jpg", "jpeg", "png", "webp"] },
+});
+const upload = multer({ storage });
 
-function parseProductPayload(req) {
-  if (typeof req.body.product === "string") {
-    return JSON.parse(req.body.product);
-  }
-  return req.body || {};
-}
+// ── Express setup ─────────────────────────────────────────────
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use("/images", express.static(path.join(__dirname, "..", "images")));
 
-function applyUploadedImages(req, product) {
-  const files = Array.isArray(req.files) ? req.files : [];
-  const colorFileMapRaw = req.body?.colorFileMap;
-  const colorFileMap = colorFileMapRaw ? JSON.parse(colorFileMapRaw) : {};
-
-  const defaultImageFile = files.find((f) => f.fieldname === "defaultImage");
-  if (defaultImageFile) {
-    product.defaultImage = fileUrl(req, defaultImageFile.filename);
-  }
-
-  if (!product.colorImages || typeof product.colorImages !== "object") {
-    product.colorImages = {};
-  }
-
-  Object.entries(colorFileMap).forEach(([color, fieldName]) => {
-    const colorFile = files.find((f) => f.fieldname === fieldName);
-    if (colorFile) {
-      product.colorImages[color] = fileUrl(req, colorFile.filename);
-    }
-  });
-}
-
+// ── Auth route ────────────────────────────────────────────────
 app.post("/api/auth/login", (req, res) => {
   const { username, password } = req.body || {};
   if (username === ADMIN.username && password === ADMIN.password) {
@@ -100,78 +84,101 @@ app.post("/api/auth/login", (req, res) => {
   return res.status(401).json({ error: "Invalid credentials" });
 });
 
+// ── Products routes ───────────────────────────────────────────
 app.get("/api/products", async (_req, res) => {
-  const products = await readJson(PRODUCTS_FILE, []);
+  const products = await Product.find().sort({ createdAt: -1 });
   res.json(products);
 });
 
 app.post("/api/products", authRequired, upload.any(), async (req, res) => {
-  const products = await readJson(PRODUCTS_FILE, []);
-  const product = parseProductPayload(req);
+  const product = typeof req.body.product === "string"
+    ? JSON.parse(req.body.product)
+    : req.body;
+
   if (!product.id) product.id = crypto.randomUUID();
   if (!product.createdAt) product.createdAt = Date.now();
-  applyUploadedImages(req, product);
+
+  applyCloudinaryImages(req, product);
+
   if (!product.defaultImage) {
     return res.status(400).json({ error: "Default image is required" });
   }
-  products.unshift(product);
-  await writeJson(PRODUCTS_FILE, products);
-  res.status(201).json(product);
+
+  const created = await Product.create(product);
+  res.status(201).json(created);
 });
 
 app.put("/api/products/:id", authRequired, upload.any(), async (req, res) => {
-  const products = await readJson(PRODUCTS_FILE, []);
-  const idx = products.findIndex((p) => p.id === req.params.id);
-  if (idx < 0) return res.status(404).json({ error: "Not found" });
-  const keepCreatedAt = products[idx].createdAt;
-  const payload = parseProductPayload(req);
-  const next = {
-    ...products[idx],
-    ...payload,
-    id: req.params.id,
-    createdAt: keepCreatedAt,
-  };
-  applyUploadedImages(req, next);
-  products[idx] = next;
-  await writeJson(PRODUCTS_FILE, products);
-  return res.json(products[idx]);
+  const existing = await Product.findOne({ id: req.params.id });
+  if (!existing) return res.status(404).json({ error: "Not found" });
+
+  const payload = typeof req.body.product === "string"
+    ? JSON.parse(req.body.product)
+    : req.body;
+
+  applyCloudinaryImages(req, payload);
+
+  const updated = await Product.findOneAndUpdate(
+    { id: req.params.id },
+    { ...payload, id: req.params.id, createdAt: existing.createdAt },
+    { new: true }
+  );
+  res.json(updated);
 });
 
 app.delete("/api/products/:id", authRequired, async (req, res) => {
-  const products = await readJson(PRODUCTS_FILE, []);
-  const next = products.filter((p) => p.id !== req.params.id);
-  await writeJson(PRODUCTS_FILE, next);
+  await Product.deleteOne({ id: req.params.id });
   res.json({ ok: true });
 });
 
+// ── About routes ──────────────────────────────────────────────
 app.get("/api/about", async (_req, res) => {
-  const about = await readJson(ABOUT_FILE, {
-    instagram: "",
-    tiktok: "",
-    maps: "",
-    phone: "",
-  });
+  let about = await About.findOne();
+  if (!about) about = await About.create({});
   res.json(about);
 });
 
 app.put("/api/about", authRequired, async (req, res) => {
-  const payload = req.body || {};
-  const about = {
-    instagram: payload.instagram || "",
-    tiktok: payload.tiktok || "",
-    maps: payload.maps || "",
-    phone: payload.phone || "",
-  };
-  await writeJson(ABOUT_FILE, about);
+  const { instagram, tiktok, maps, phone } = req.body || {};
+  let about = await About.findOne();
+  if (!about) about = new About({});
+  Object.assign(about, { instagram, tiktok, maps, phone });
+  await about.save();
   res.json(about);
 });
 
-const port = process.env.PORT || 4000;
-await fs.mkdir(UPLOADS_DIR, { recursive: true });
-app.use(express.static(path.join(__dirname, "public")));
-app.listen(port, () => {
-  console.log(`Sultana backend running on http://localhost:${port}`);
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+// ── Helper ────────────────────────────────────────────────────
+function applyCloudinaryImages(req, product) {
+  const files = Array.isArray(req.files) ? req.files : [];
+  const colorFileMap = req.body?.colorFileMap ? JSON.parse(req.body.colorFileMap) : {};
+
+  const defaultFile = files.find((f) => f.fieldname === "defaultImage");
+  if (defaultFile) product.defaultImage = defaultFile.path; // Cloudinary URL
+
+  if (!product.colorImages || typeof product.colorImages !== "object") {
+    product.colorImages = {};
+  }
+
+  Object.entries(colorFileMap).forEach(([color, fieldName]) => {
+    const file = files.find((f) => f.fieldname === fieldName);
+    if (file) product.colorImages[color] = file.path; // Cloudinary URL
   });
+}
+
+// ── Serve frontend ────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
+// ── Start ─────────────────────────────────────────────────────
+const port = process.env.PORT || 4000;
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log("✅ MongoDB connected");
+    app.listen(port, () => console.log(`🚀 Sultana running on port ${port}`));
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection failed:", err);
+    process.exit(1);
+  });
